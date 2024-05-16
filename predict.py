@@ -1,6 +1,7 @@
 from datetime import datetime
 from urllib.parse import urlparse
 import pandas as pd
+from utility import load_model
 
 
 """The function get_weekday will receive the datetime argument(Reddit posting date) and return the current weekday"""
@@ -111,24 +112,23 @@ def count_word_occurrences(long_string, word_list = ['actually',
     return result
 
 
-"""Function to infer the result number of voteups or the number of comments on 1 post, given all the other informations. 
+"""Function to return a large Python dictionary indicating all informations related to 1 Reddit post. 
 Through all the intermediate processing part, the informations given initially would be processed and concatenated together 
-into a large Python dictionary, and finally be fed into the already trained Scikit-learn Machine Learning model to return the final result.
+into a large Python dictionary ready to be given to the already trained Scikit-learn Machine Learning model afterward.
 We will use all the above functions to process the data."""
-def inference_items(estimator, subscribers, posting_time: datetime, posting_title, posting_content,
+def inference_items(subscribers, posting_time: datetime, posting_title, posting_content,
                     referenced_url=None):
     """
     Predicting target given all the other informations
 
     Parameters:
-    estimator: The Machine Learning model used. (scikit-learn model)
     subscribers: Number of subscribers for this Reddit user (int)
     posting time: the time when the Reddit post appear (datetime)
     posting title: the title of the Reddit post (string)
     posting content: the content of the Reddit post (string)
     referenced_url: the URL link referenced in the post(can be None)
 
-    return: the result of the prediction by the model
+    return: the large Python dictionary combining all the above informations.
     """
 
     def sum_dictionaries(dict1, dict2):
@@ -165,6 +165,28 @@ def inference_items(estimator, subscribers, posting_time: datetime, posting_titl
     for dictionary in list_dict:
         final_dict.update(dictionary)
 
+    return final_dict
+
+
+"""API function to predict the number of voteups for 1 Reddit post. The Extra Tree model is the best model and would be used here"""
+def predict_voteups_api(subscribers, posting_time: datetime, posting_title, posting_content,
+                    referenced_url=None):
+
+    estimator = load_model("models/ExtraTree_voteups.pkl")
+
+    final_dict = inference_items(subscribers, posting_time, posting_title, posting_content, referenced_url)
+    transformed_item = pd.DataFrame(final_dict, index=[0])[estimator.feature_names_in_]
+    predicted_value = estimator.predict(transformed_item)[0]
+
+    return predicted_value
+
+
+"""API function to predict the number of comments for 1 Reddit post. The Extra Tree model is the best model and would be used here"""
+def predict_comments_api(subscribers, posting_time: datetime, posting_title, posting_content,
+                        referenced_url=None):
+    estimator = load_model("models/ExtraTree_comments.pkl")
+
+    final_dict = inference_items(subscribers, posting_time, posting_title, posting_content, referenced_url)
     transformed_item = pd.DataFrame(final_dict, index=[0])[estimator.feature_names_in_]
     predicted_value = estimator.predict(transformed_item)[0]
 
